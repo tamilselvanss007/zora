@@ -99,7 +99,7 @@ class IslandFrame @JvmOverloads constructor(context: Context, attrs: AttributeSe
         if (gradient == null || gradientFor != cx) {
             gradientFor = cx
             gradient = SweepGradient(cx, cy,
-                intArrayOf(0x0038BDF8, 0x6638BDF8, 0xFF67E8F9.toInt(), 0xFF38BDF8.toInt(), 0x0038BDF8, 0x0022D3EE, 0x8822D3EE, 0x0022D3EE),
+                intArrayOf(0x0038BDF8, 0x6638BDF8, 0xFF67E8F9.toInt(), 0xFF38BDF8.toInt(), 0x0038BDF8, 0x0022D3EE, 0x8822D3EE.toInt(), 0x0022D3EE),
                 floatArrayOf(0f, 0.12f, 0.22f, 0.32f, 0.45f, 0.6f, 0.78f, 1f))
         }
         val angle = (SystemClock.uptimeMillis() % 2400L) / 2400f * 360f
