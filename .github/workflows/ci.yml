@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch replaces a build that is still running.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache sherpa-onnx
+        uses: actions/cache@v4
+        with:
+          path: app/libs/*.aar
+          key: sherpa-onnx-${{ hashFiles('app/build.gradle.kts') }}
+
+      - name: Cache embedded llama-server binaries
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/jniLibs/*/libllama_server.so
+          key: llama-android-${{ hashFiles('scripts/build-llama-android.sh') }}
+
+      # Optional: builds the bundled libllama_server.so inside the APK.
+      # If it fails, Termux (127.0.0.1:8080) and LAN models still work.
+      # To speed up CI and use Termux only, remove or comment out this step.
+      - name: Build bundled llama-server for Android
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          chmod +x scripts/build-llama-android.sh
+          bash scripts/build-llama-android.sh
+
+      - name: Build debug APKs
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          python3 scripts/check-apk-abis.py debug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sora-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Unit tests and lint
+        run: ./gradlew testDebugUnitTest lintDebug
+
+      - name: Upload test and lint reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-and-lint-reports
+          path: |
+            app/build/reports/tests/
+            app/build/reports/lint-results-debug.html
+            app/build/test-results/
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: app/build/screenshots/
+          if-no-files-found: ignore
